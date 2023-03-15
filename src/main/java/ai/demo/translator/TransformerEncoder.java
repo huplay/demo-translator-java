@@ -94,7 +94,8 @@ public class TransformerEncoder
 
     private float[] attention(float[] hiddenState)
     {
-        float[] query = applyWeight(hiddenState, queryWeights, queryBiases);
+        // TODO: Transpose q and other weights
+        float[] query = applyWeight(hiddenState, queryWeights, queryBiases); // TODO: divide by 8, but only the query
         float[][] queries = Util.splitVector(query, settings.getEncoderHeadCount());
 
         float[][] sums = new float[settings.getEncoderHeadCount()][settings.getHiddenSize() / settings.getEncoderHeadCount()];

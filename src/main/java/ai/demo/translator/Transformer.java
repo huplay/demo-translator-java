@@ -105,14 +105,14 @@ public class Transformer
             float[] hiddenState = tokenEmbeddings[inputTokens.get(pos)];
 
             // Position embedding
-            hiddenState = Util.addVectors(hiddenState, encoderPositionEmbeddings[pos]);
+            hiddenState = Util.addVectors(hiddenState, encoderPositionEmbeddings[pos + 2]);
 
             // Initial normalization
             hiddenState = normalization(hiddenState, encoderNormWeights, encoderNormBiases, settings.getEpsilon());
 
             inputHiddenStates.add(hiddenState);
         }
-
+        // TODO: We are good until this point
         List<float[]> hiddenStates = new ArrayList<>(inputTokens.size());
 
         // Encoder stack
@@ -137,7 +137,7 @@ public class Transformer
     private float[] decoderStack(int pos, float[] hiddenState, float[] encoderOutput)
     {
         // Position embedding
-        hiddenState = Util.addVectors(hiddenState, decoderPositionEmbeddings[pos]);
+        hiddenState = Util.addVectors(hiddenState, decoderPositionEmbeddings[pos + 2]);
 
         // Initial normalization
         hiddenState = normalization(hiddenState, decoderNormWeights, decoderNormBiases, settings.getEpsilon());
