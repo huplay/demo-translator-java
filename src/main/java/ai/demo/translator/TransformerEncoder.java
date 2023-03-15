@@ -37,7 +37,7 @@ public class TransformerEncoder
     {
         this.settings = settings;
 
-        String path = settings.getPath() + "/decoder" + (encoderId + 1);
+        String path = settings.getPath() + "/encoders/encoder" + (encoderId + 1);
         int hiddenSize = settings.getHiddenSize();
 
         this.queryWeights = readMatrixFile(path, "att.query.w", hiddenSize, hiddenSize);
@@ -61,68 +61,55 @@ public class TransformerEncoder
     /**
      * Decoder logic
      */
-    public float[] execute(float[] hiddenState)
+    public float[] calculateKeysAndValues(float[] hiddenState)
     {
-        // Attention block
-        hiddenState = attentionBlock(hiddenState);
-
-        // Neuron layers
-        return neuronBlock(hiddenState);
-    }
-
-    private float[] attentionBlock(float[] inputHiddenState)
-    {
-        // Normalization
-        float[] hiddenState = normalization(inputHiddenState, attNormWeights, attNormBiases, settings.getEpsilon());
-
-        // Attention layer
-        hiddenState = attention(hiddenState);
-
-        // Add the original input state to the actual (residual connection)
-        return Util.addVectors(hiddenState, inputHiddenState);
-    }
-
-    private float[] neuronBlock(float[] inputHiddenState)
-    {
-        // Normalization
-        float[] hiddenState = normalization(inputHiddenState, mlpNormWeights, mlpNormBiases, settings.getEpsilon());
-
-        // Neuron layers
-        hiddenState = neuronLayers(hiddenState);
-
-        // Add the original input state to the actual (residual connection)
-        return Util.addVectors(hiddenState, inputHiddenState);
-    }
-
-    private float[] attention(float[] hiddenState)
-    {
-        // Calculate the query, key and value vectors for the actual token:
-        float[] query = applyWeight(hiddenState, queryWeights, queryBiases);
+        // Calculate the key and value vectors for the actual token:
         float[] key = applyWeight(hiddenState, keyWeights, keyBiases);
         float[] value = applyWeight(hiddenState, valueWeights, valueBiases);
 
-        // Split the query, key and value vectors into pieces for all heads
-        float[][] queries = Util.splitVector(query, settings.getHeadCount());
-        float[][] keys = Util.splitVector(key, settings.getHeadCount());
-        float[][] values = Util.splitVector(value, settings.getHeadCount());
+        // Split the key and value vectors into pieces for all heads
+        float[][] keys = Util.splitVector(key, settings.getEncoderHeadCount());
+        float[][] values = Util.splitVector(value, settings.getEncoderHeadCount());
 
         // Store the keys and values (these will be available while the following tokens will be processed)
         storedKeys.add(keys);
         storedValues.add(values);
 
-        float[][] sums = new float[settings.getHeadCount()][settings.getHiddenSize() / settings.getHeadCount()];
+        return hiddenState;
+    }
+
+    public float[] execute(float[] hiddenState, float[] inputHiddenState)
+    {
+        // Attention block
+        hiddenState = attention(hiddenState);
+
+        // Add the original input state to the actual (residual connection)
+        hiddenState = Util.addVectors(hiddenState, inputHiddenState);
+
+        hiddenState = normalization(hiddenState, attNormWeights, attNormBiases, settings.getEpsilon());
+
+        // Neuron layers
+        return neuronBlock(hiddenState);
+    }
+
+    private float[] attention(float[] hiddenState)
+    {
+        float[] query = applyWeight(hiddenState, queryWeights, queryBiases);
+        float[][] queries = Util.splitVector(query, settings.getEncoderHeadCount());
+
+        float[][] sums = new float[settings.getEncoderHeadCount()][settings.getHiddenSize() / settings.getEncoderHeadCount()];
 
         // Scoring the previous tokens (including the actual), separately for all heads
         // Again: we have to score not only the previous, but the actual token as well
         // That is the reason of that we already added the actual key/value to the stored keys/values
-        for (int head = 0; head < settings.getHeadCount(); head++)
+        for (int head = 0; head < settings.getEncoderHeadCount(); head++)
         {
             // Calculate the scores
             float[] scores = new float[storedKeys.size()];
             for (int pos = 0; pos < storedKeys.size(); pos++)
             {
                 // The score is calculated multiplying the "actual" query vector and the "related" key vector
-                scores[pos] = Util.dotProduct(queries[head], storedKeys.get(pos)[head]) / settings.getScoreDividend();
+                scores[pos] = Util.dotProduct(queries[head], storedKeys.get(pos)[head]) / settings.getEncoderScoreDividend();
             }
 
             // Softmax
@@ -141,6 +128,18 @@ public class TransformerEncoder
 
         // Apply the attention projection weights and biases
         return applyWeight(flatSums, projectionWeights, projectionBiases);
+    }
+
+    private float[] neuronBlock(float[] inputHiddenState)
+    {
+        // Neuron layers
+        float[] hiddenState = neuronLayers(inputHiddenState);
+
+        // Add the original input state to the actual (residual connection)
+        hiddenState = Util.addVectors(hiddenState, inputHiddenState);
+
+        // Normalization
+        return normalization(hiddenState, mlpNormWeights, mlpNormBiases, settings.getEpsilon());
     }
 
     private float[] neuronLayers(float[] hiddenState)

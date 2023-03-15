@@ -8,24 +8,25 @@ import static ai.demo.translator.App.OUT;
 
 public class Settings
 {
-    public static final String ATTENTION_GLOBAL = "global";
-    public static final String ATTENTION_LOCAL = "local";
-    public static final String ATTENTION_NONE = "none";
-
     private final String path;
-    private final int maxLength;
+
     private final int tokenCount;
     private final int startOfTextToken;
     private final int endOfTextToken;
+
     private final int contextSize;
     private final int hiddenSize;
+
     private final int encoderCount;
+    private final int encoderHeadCount;
+    private final int encoderScoreDividend;
+
     private final int decoderCount;
-    private final int headCount;
-    private final int scoreDividend;
-    private final String[] attentionType;
+    private final int decoderHeadCount;
+    private final int decoderScoreDividend;
+
     private final float epsilon;
-    private final int localAttentionSize;
+
     private final boolean hasAttentionQueryBias;
     private final boolean hasAttentionKeyBias;
     private final boolean hasAttentionValueBias;
@@ -33,10 +34,9 @@ public class Settings
     private final boolean hasMlpLayer1Bias;
     private final boolean hasMlpLayer2Bias;
 
-    public Settings(String path, int maxLength) throws Exception
+    public Settings(String path) throws Exception
     {
         this.path = path;
-        this.maxLength = maxLength;
 
         // Read all properties from the model.properties file
         Map<String, String> properties = new HashMap<>();
@@ -70,51 +70,49 @@ public class Settings
         tokenCount = getIntProperty(properties, "token.count");
         startOfTextToken = getIntProperty(properties, "start.of.text.token");
         endOfTextToken = getIntProperty(properties, "end.of.text.token");
+
         contextSize = getIntProperty(properties, "context.size");
         hiddenSize = getIntProperty(properties, "hidden.size");
+
         encoderCount = getIntProperty(properties, "encoder.count");
+        encoderHeadCount = getIntProperty(properties, "encoder.attention.head.count");
+        encoderScoreDividend = getIntProperty(properties, "encoder.attention.score.dividend");
+
         decoderCount = getIntProperty(properties, "decoder.count");
-        headCount = getIntProperty(properties, "attention.head.count");
-        scoreDividend = getIntProperty(properties, "attention.score.dividend");
+        decoderHeadCount = getIntProperty(properties, "decoder.attention.head.count");
+        decoderScoreDividend = getIntProperty(properties, "decoder.attention.score.dividend");
+
         epsilon = getFloatProperty(properties, "epsilon");
+
         hasAttentionQueryBias = getBooleanProperty(properties, "has.attention.query.bias", true);
         hasAttentionKeyBias = getBooleanProperty(properties, "has.attention.key.bias", true);
         hasAttentionValueBias = getBooleanProperty(properties, "has.attention.value.bias", true);
         hasAttentionProjectionBias = getBooleanProperty(properties, "has.attention.projection.bias", true);
         hasMlpLayer1Bias = getBooleanProperty(properties, "has.mlp.layer.1.bias", true);
         hasMlpLayer2Bias = getBooleanProperty(properties, "has.mlp.layer.2.bias", true);
-
-        boolean isLocalUsed = false;
-
-        // Collect the attention type for all decoders
-        String[] attentionType = new String[decoderCount];
-        for (int i = 0; i < decoderCount; i++)
-        {
-            String type = getProperty(properties, "attention.type." + (i + 1));
-
-            if (!type.equals(ATTENTION_GLOBAL) && !type.equals(ATTENTION_LOCAL) && !type.equals(ATTENTION_NONE))
-            {
-                throw new Exception("Incorrect attention type: '" + type + "'" + " Possible values: '"
-                        + ATTENTION_GLOBAL + "'," + "'" + ATTENTION_LOCAL + "'," + "'" + ATTENTION_NONE + "'.");
-            }
-
-            if (type.equals(ATTENTION_LOCAL)) isLocalUsed = true;
-
-            attentionType[i] = type;
-        }
-        this.attentionType = attentionType;
-
-        if (isLocalUsed) localAttentionSize = toInt(getProperty(properties, "attention.local.size"));
-        else localAttentionSize = Integer.MAX_VALUE;
     }
 
     public long getParameterSize()
     {
         long wteSize = (long) tokenCount * hiddenSize;
-        long wpeSize = (long) contextSize * hiddenSize;
+
+        long wpeSize = (long) (contextSize + 2) * hiddenSize;
         long finalNormSize = (long) hiddenSize * 2;
 
-        return wteSize + wpeSize + (getDecoderParameterSize() * decoderCount) + finalNormSize;
+        return wteSize +
+                wpeSize + (getEncoderParameterSize() * encoderCount) + finalNormSize +
+                wpeSize + (getDecoderParameterSize() * decoderCount) + finalNormSize;
+    }
+
+    private long getEncoderParameterSize()
+    {
+        long qkvSize = ((long) hiddenSize * hiddenSize + hiddenSize) * 3;
+        long projSize = (long) hiddenSize * hiddenSize + hiddenSize;
+        long normSize = (long) hiddenSize * 4;
+        long layer1Size = ((long) hiddenSize * hiddenSize + hiddenSize) * 4;
+        long layer2Size = (long) hiddenSize * hiddenSize * 4 + hiddenSize;
+
+        return qkvSize + projSize + normSize + layer1Size + layer2Size;
     }
 
     private long getDecoderParameterSize()
@@ -125,7 +123,7 @@ public class Settings
         long layer1Size = ((long) hiddenSize * hiddenSize + hiddenSize) * 4;
         long layer2Size = (long) hiddenSize * hiddenSize * 4 + hiddenSize;
 
-        return qkvSize + projSize + normSize + layer1Size + layer2Size;
+        return 2 * (qkvSize + projSize + normSize) + layer1Size + layer2Size;
     }
 
     private int getIntProperty(Map<String, String> properties, String key) throws Exception
@@ -203,11 +201,6 @@ public class Settings
         return path;
     }
 
-    public int getMaxLength()
-    {
-        return maxLength;
-    }
-
     public int getTokenCount()
     {
         return tokenCount;
@@ -238,34 +231,34 @@ public class Settings
         return encoderCount;
     }
 
+    public int getEncoderHeadCount()
+    {
+        return encoderHeadCount;
+    }
+
+    public int getEncoderScoreDividend()
+    {
+        return encoderScoreDividend;
+    }
+
     public int getDecoderCount()
     {
         return decoderCount;
     }
 
-    public int getHeadCount()
+    public int getDecoderHeadCount()
     {
-        return headCount;
+        return decoderHeadCount;
     }
 
-    public int getScoreDividend()
+    public int getDecoderScoreDividend()
     {
-        return scoreDividend;
+        return decoderScoreDividend;
     }
 
     public float getEpsilon()
     {
         return epsilon;
-    }
-
-    public String[] getAttentionType()
-    {
-        return attentionType;
-    }
-
-    public int getLocalAttentionSize()
-    {
-        return localAttentionSize;
     }
 
     public boolean hasAttentionQueryBias()

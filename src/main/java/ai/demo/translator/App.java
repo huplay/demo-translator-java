@@ -12,38 +12,38 @@ public class App
     {
         OUT = new PrintStream(System.out, true, "utf-8");
 
-        OUT.println("  _____________________________      ___");
-        OUT.println(" /  _____/\\______   \\__    ___/   __|  /____   _____   ____");
-        OUT.println("/   \\  ___ |     ___/ |    |     / __ |/ __ \\ /     \\ /  _ \\");
-        OUT.println("\\    \\_\\  \\|    |     |    |    / /_/ \\  ___/|  Y Y  (  <_> )");
-        OUT.println(" \\________/|____|     |____|    \\_____|\\_____>__|_|__/\\____/\n");
+        OUT.println("________                            __                               __          __");
+        OUT.println("\\______ \\   ____   _____   ____   _/  |_____________    ____   _____|  | _____ _/  |_ ___________");
+        OUT.println(" |    |  \\_/ __ \\ /     \\ /  _ \\  \\   __\\_  __ \\__  \\  /    \\ /  ___|  | \\__  \\\\   __/  _ \\_  __ \\");
+        OUT.println(" |    |   \\  ___/|  Y Y  (  <_> )  |  |  |  | \\// __ \\|   |  \\\\___ \\|  |__/ __ \\|  |(  <_> |  | \\/");
+        OUT.println("/_________/\\_____|__|_|__/\\____/   |__|  |__|  (______|___|__/______|____(______|__| \\____/|__|\n");
 
         try
         {
-            Arguments arguments = readArguments(args);
+            if (args == null || args.length == 0)
+            {
+                throw new Exception("The first parameter should be the path of the model parameters.");
+            }
 
-            OUT.println("Path: " + arguments.getPath());
+            String path = args[0];
 
-            Settings settings = new Settings(arguments.getPath(), arguments.getMaxLength());
+            OUT.println("Path: " + path);
+
+            Settings settings = new Settings(path);
 
             OUT.println("Number of parameters: " + Math.round(settings.getParameterSize() / 1000000d) + " M");
-            OUT.println("Maximum length of generated text: " + arguments.getMaxLength());
 
             OUT.print("\nLoading trained parameters... ");
-            Tokenizer tokenizer = new Tokenizer(arguments.getPath());
+            Tokenizer tokenizer = new Tokenizer(path);
             Transformer transformer = new Transformer(settings, tokenizer);
             OUT.print("Done.");
 
             while (true)
             {
                 // Read the input text
-                OUT.print("\n\nInput text: ");
+                OUT.print("\n\nEnglish text: ");
                 BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
                 String input = reader.readLine();
-
-                // If the input starts with "//", the same session will be continued, otherwise delete the stored state
-                if (input != null && input.startsWith("//")) input = input.substring(2);
-                else transformer.clear();
 
                 // Split the input text into tokens
                 List<Integer> inputTokens = tokenizer.encode(input);
@@ -77,77 +77,6 @@ public class App
         if ( ! tokenByTokenResponse.toString().equals(response))
         {
             OUT.print("\nCorrected unicode response:\n" + response);
-        }
-    }
-
-    private static Arguments readArguments(String[] args) throws Exception
-    {
-        // Default values
-        if (args == null || args.length == 0)
-        {
-            throw new Exception("The first parameter should be the path of the model parameters.");
-        }
-
-        String path = args[0];
-
-        int maxLength = 25;
-        int topK = 40;
-
-        if (args.length > 1)
-        {
-            // Iterate over the passed parameters and override the default values
-            for (int i = 1; i < args.length; i++)
-            {
-                String[] parts = args[i].split("=");
-                if (parts.length == 2)
-                {
-                    String param = parts[0].toLowerCase();
-                    String value = parts[1];
-
-                    if (param.equals("maxlength")) maxLength = readInt(value, maxLength);
-                }
-                else OUT.println("\nWARNING: Unrecognisable argument: " + args[i] + "\n");
-            }
-        }
-
-        return new Arguments(path, maxLength, topK);
-    }
-
-    private static int readInt(String value, int defaultValue)
-    {
-        try
-        {
-            return Integer.parseInt(value);
-        }
-        catch (Exception e)
-        {
-            OUT.println("\nWARNING: The provided value can't be converted to integer (" + value
-                    + "). Default value will be used.\n");
-        }
-        return defaultValue;
-    }
-
-    private static class Arguments
-    {
-        private final String path;
-        private final int maxLength;
-        private final int topK;
-
-        public Arguments(String path, int maxLength, int topK)
-        {
-            this.path = path;
-            this.maxLength = maxLength;
-            this.topK = topK;
-        }
-
-        public String getPath()
-        {
-            return path;
-        }
-
-        public int getMaxLength()
-        {
-            return maxLength;
         }
     }
 }
