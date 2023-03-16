@@ -70,24 +70,29 @@ public class Transformer
         inputTokens.add(0, settings.getStartOfTextToken());
         inputTokens.add(settings.getEndOfTextToken());
 
-        float[] encoderOutput = encoderStack(inputTokens);
+        List<float[]> encoderOutputs = executeEncoderStack(inputTokens);
+
+        for (TransformerDecoder decoder : decoders)
+        {
+            decoder.calculateKeysAndValues(encoderOutputs);
+        }
 
         // Collector of the generated new tokens (translation)
         List<Integer> result = new ArrayList<>();
 
-        float[] hiddenState = tokenEmbeddings[settings.getStartOfTextToken()];
+        int token = settings.getEndOfTextToken();
 
         for (int pos = 0; pos < settings.getContextSize(); pos++)
         {
             // Add the last input token or the previously generated new token as input
-            hiddenState = decoderStack(pos, hiddenState, encoderOutput);
+            float[] hiddenState = decoderStack(pos, token, encoderOutputs);
 
             // The output will be the next new token
-            int nextToken = selectNextToken(hiddenState);
-            result.add(nextToken);
+            token = selectNextToken(hiddenState);
+            result.add(token);
 
             // Exit if the END_OF_TEXT token was chosen or the context size is reached
-            if (nextToken == settings.getEndOfTextToken()) break;
+            if (token == settings.getEndOfTextToken()) break;
         }
 
         clear();
@@ -95,9 +100,9 @@ public class Transformer
         return result;
     }
 
-    private float[] encoderStack(List<Integer> inputTokens)
+    private List<float[]> executeEncoderStack(List<Integer> inputTokens)
     {
-        List<float[]> inputHiddenStates = new ArrayList<>(inputTokens.size());
+        List<float[]> hiddenStates = new ArrayList<>(inputTokens.size());
 
         for (int pos = 0; pos < inputTokens.size(); pos++)
         {
@@ -110,32 +115,32 @@ public class Transformer
             // Initial normalization
             hiddenState = normalization(hiddenState, encoderNormWeights, encoderNormBiases, settings.getEpsilon());
 
-            inputHiddenStates.add(hiddenState);
+            hiddenStates.add(hiddenState);
         }
-        // TODO: We are good until this point
-        List<float[]> hiddenStates = new ArrayList<>(inputTokens.size());
 
         // Encoder stack
         for (TransformerEncoder encoder : encoders)
         {
             for (int i = 0; i < inputTokens.size(); i++)
             {
-                hiddenStates.add(encoder.calculateKeysAndValues(inputHiddenStates.get(i)));
+                encoder.calculateKeysAndValues(hiddenStates.get(i));
             }
 
             for (int i = 0; i < inputTokens.size(); i++)
             {
-                hiddenStates.set(i, encoder.execute(hiddenStates.get(i), inputHiddenStates.get(i)));
+                hiddenStates.set(i, encoder.execute(hiddenStates.get(i), hiddenStates.get(i)));
             }
 
             encoder.clear();
         }
 
-        return hiddenStates.get(0);
+        return hiddenStates;
     }
 
-    private float[] decoderStack(int pos, float[] hiddenState, float[] encoderOutput)
+    private float[] decoderStack(int pos, int token, List<float[]> encoderOutput)
     {
+        float[] hiddenState = tokenEmbeddings[token];
+
         // Position embedding
         hiddenState = Util.addVectors(hiddenState, decoderPositionEmbeddings[pos + 2]);
 

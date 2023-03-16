@@ -61,7 +61,7 @@ public class TransformerEncoder
     /**
      * Decoder logic
      */
-    public float[] calculateKeysAndValues(float[] hiddenState)
+    public void calculateKeysAndValues(float[] hiddenState)
     {
         // Calculate the key and value vectors for the actual token:
         float[] key = applyWeight(hiddenState, keyWeights, keyBiases);
@@ -74,8 +74,6 @@ public class TransformerEncoder
         // Store the keys and values (these will be available while the following tokens will be processed)
         storedKeys.add(keys);
         storedValues.add(values);
-
-        return hiddenState;
     }
 
     public float[] execute(float[] hiddenState, float[] inputHiddenState)
@@ -94,8 +92,7 @@ public class TransformerEncoder
 
     private float[] attention(float[] hiddenState)
     {
-        // TODO: Transpose q and other weights
-        float[] query = applyWeight(hiddenState, queryWeights, queryBiases); // TODO: divide by 8, but only the query
+        float[] query = applyWeight(hiddenState, queryWeights, queryBiases);
         float[][] queries = Util.splitVector(query, settings.getEncoderHeadCount());
 
         float[][] sums = new float[settings.getEncoderHeadCount()][settings.getHiddenSize() / settings.getEncoderHeadCount()];
@@ -157,7 +154,7 @@ public class TransformerEncoder
     }
 
     /**
-     * Clear stored values to start a new session
+     * Clear the stored values after the encoder calculated its outputs
      */
     public void clear()
     {

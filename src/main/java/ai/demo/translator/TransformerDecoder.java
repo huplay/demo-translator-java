@@ -12,27 +12,27 @@ public class TransformerDecoder
 {
     private final Settings settings;
 
-    private final float[][] queryWeights;
-    private final float[] queryBiases;
-    private final float[][] keyWeights;
-    private final float[] keyBiases;
-    private final float[][] valueWeights;
-    private final float[] valueBiases;
-    private final float[][] projectionWeights;
-    private final float[] projectionBiases;
-    private final float[] attNormWeights;
-    private final float[] attNormBiases;
+    private final float[][] selfQueryWeights;
+    private final float[] selfQueryBiases;
+    private final float[][] selfKeyWeights;
+    private final float[] selfKeyBiases;
+    private final float[][] selfValueWeights;
+    private final float[] selfValueBiases;
+    private final float[][] selfProjectionWeights;
+    private final float[] selfProjectionBiases;
+    private final float[] selfNormWeights;
+    private final float[] selfNormBiases;
 
-    private final float[][] encoderQueryWeights;
-    private final float[] encoderQueryBiases;
-    private final float[][] encoderKeyWeights;
-    private final float[] encoderKeyBiases;
-    private final float[][] encoderValueWeights;
-    private final float[] encoderValueBiases;
-    private final float[][] encoderProjectionWeights;
-    private final float[] encoderProjectionBiases;
-    private final float[] encoderAttNormWeights;
-    private final float[] encoderAttNormBiases;
+    private final float[][] crossQueryWeights;
+    private final float[] crossQueryBiases;
+    private final float[][] crossKeyWeights;
+    private final float[] crossKeyBiases;
+    private final float[][] crossValueWeights;
+    private final float[] crossValueBiases;
+    private final float[][] crossProjectionWeights;
+    private final float[] crossProjectionBiases;
+    private final float[] crossNormWeights;
+    private final float[] crossNormBiases;
 
     private final float[][] mlpLayer1Weights;
     private final float[] mlpLayer1Biases;
@@ -41,11 +41,11 @@ public class TransformerDecoder
     private final float[] mlpNormWeights;
     private final float[] mlpNormBiases;
 
-    private final List<float[][]> storedKeys = new ArrayList<>();
-    private final List<float[][]> storedValues = new ArrayList<>();
+    private final List<float[][]> storedSelfKeys = new ArrayList<>();
+    private final List<float[][]> storedSelfValues = new ArrayList<>();
 
-    private final List<float[][]> storedEncoderKeys = new ArrayList<>();
-    private final List<float[][]> storedEncoderValues = new ArrayList<>();
+    private final List<float[][]> storedCrossKeys = new ArrayList<>();
+    private final List<float[][]> storedCrossValues = new ArrayList<>();
 
     /**
      * Initialization
@@ -57,27 +57,27 @@ public class TransformerDecoder
         String path = settings.getPath() + "/decoders/decoder" + (decoderId + 1);
         int hiddenSize = settings.getHiddenSize();
 
-        this.queryWeights = readMatrixFile(path, "att.query.w", hiddenSize, hiddenSize);
-        this.queryBiases = readVectorFile(path, "att.query.b", hiddenSize, settings.hasAttentionQueryBias());
-        this.keyWeights = readMatrixFile(path, "att.key.w", hiddenSize, hiddenSize);
-        this.keyBiases = readVectorFile(path, "att.key.b", hiddenSize, settings.hasAttentionKeyBias());
-        this.valueWeights = readMatrixFile(path, "att.value.w", hiddenSize, hiddenSize);
-        this.valueBiases = readVectorFile(path, "att.value.b", hiddenSize, settings.hasAttentionValueBias());
-        this.projectionWeights = readMatrixFile(path, "att.proj.w", hiddenSize, hiddenSize);
-        this.projectionBiases = readVectorFile(path, "att.proj.b", hiddenSize, settings.hasAttentionProjectionBias());
-        this.attNormWeights = readVectorFile(path, "att.norm.w", hiddenSize);
-        this.attNormBiases = readVectorFile(path, "att.norm.b", hiddenSize);
+        this.selfQueryWeights = readMatrixFile(path, "att.self.query.w", hiddenSize, hiddenSize);
+        this.selfQueryBiases = readVectorFile(path, "att.self.query.b", hiddenSize, settings.hasAttentionQueryBias());
+        this.selfKeyWeights = readMatrixFile(path, "att.self.key.w", hiddenSize, hiddenSize);
+        this.selfKeyBiases = readVectorFile(path, "att.self.key.b", hiddenSize, settings.hasAttentionKeyBias());
+        this.selfValueWeights = readMatrixFile(path, "att.self.value.w", hiddenSize, hiddenSize);
+        this.selfValueBiases = readVectorFile(path, "att.self.value.b", hiddenSize, settings.hasAttentionValueBias());
+        this.selfProjectionWeights = readMatrixFile(path, "att.self.proj.w", hiddenSize, hiddenSize);
+        this.selfProjectionBiases = readVectorFile(path, "att.self.proj.b", hiddenSize, settings.hasAttentionProjectionBias());
+        this.selfNormWeights = readVectorFile(path, "att.self.norm.w", hiddenSize);
+        this.selfNormBiases = readVectorFile(path, "att.self.norm.b", hiddenSize);
 
-        this.encoderQueryWeights = readMatrixFile(path, "att.query.encoder.w", hiddenSize, hiddenSize);
-        this.encoderQueryBiases = readVectorFile(path, "att.query.encoder.b", hiddenSize, settings.hasAttentionQueryBias());
-        this.encoderKeyWeights = readMatrixFile(path, "att.key.encoder.w", hiddenSize, hiddenSize);
-        this.encoderKeyBiases = readVectorFile(path, "att.key.encoder.b", hiddenSize, settings.hasAttentionKeyBias());
-        this.encoderValueWeights = readMatrixFile(path, "att.value.encoder.w", hiddenSize, hiddenSize);
-        this.encoderValueBiases = readVectorFile(path, "att.value.encoder.b", hiddenSize, settings.hasAttentionValueBias());
-        this.encoderProjectionWeights = readMatrixFile(path, "att.proj.encoder.w", hiddenSize, hiddenSize);
-        this.encoderProjectionBiases = readVectorFile(path, "att.proj.encoder.b", hiddenSize, settings.hasAttentionProjectionBias());
-        this.encoderAttNormWeights = readVectorFile(path, "att.norm.encoder.w", hiddenSize);
-        this.encoderAttNormBiases = readVectorFile(path, "att.norm.encoder.b", hiddenSize);
+        this.crossQueryWeights = readMatrixFile(path, "att.cross.query.w", hiddenSize, hiddenSize);
+        this.crossQueryBiases = readVectorFile(path, "att.cross.query.b", hiddenSize, settings.hasAttentionQueryBias());
+        this.crossKeyWeights = readMatrixFile(path, "att.cross.key.w", hiddenSize, hiddenSize);
+        this.crossKeyBiases = readVectorFile(path, "att.cross.key.b", hiddenSize, settings.hasAttentionKeyBias());
+        this.crossValueWeights = readMatrixFile(path, "att.cross.value.w", hiddenSize, hiddenSize);
+        this.crossValueBiases = readVectorFile(path, "att.cross.value.b", hiddenSize, settings.hasAttentionValueBias());
+        this.crossProjectionWeights = readMatrixFile(path, "att.cross.proj.w", hiddenSize, hiddenSize);
+        this.crossProjectionBiases = readVectorFile(path, "att.cross.proj.b", hiddenSize, settings.hasAttentionProjectionBias());
+        this.crossNormWeights = readVectorFile(path, "att.cross.norm.w", hiddenSize);
+        this.crossNormBiases = readVectorFile(path, "att.cross.norm.b", hiddenSize);
 
         this.mlpLayer1Weights = readMatrixFile(path, "mlp.layer1.w", hiddenSize, hiddenSize * 4);
         this.mlpLayer1Biases = readVectorFile(path, "mlp.layer1.b", hiddenSize * 4, settings.hasMlpLayer1Bias());
@@ -88,9 +88,29 @@ public class TransformerDecoder
     }
 
     /**
+     * Calculate keys ans values for all encoder outputs
+     */
+    public void calculateKeysAndValues(List<float[]> encoderOutputs)
+    {
+        for (float[] encoderOutput : encoderOutputs)
+        {
+            float[] key = applyWeight(encoderOutput, crossKeyWeights, crossKeyBiases);
+            float[] value = applyWeight(encoderOutput, crossValueWeights, crossValueBiases);
+
+            // Split the query, key and value vectors into pieces for all heads
+            float[][] keys = Util.splitVector(key, settings.getDecoderHeadCount());
+            float[][] values = Util.splitVector(value, settings.getDecoderHeadCount());
+
+            // Store the keys and values (these will be available while the following tokens will be processed)
+            storedCrossKeys.add(keys);
+            storedCrossValues.add(values);
+        }
+    }
+
+    /**
      * Decoder logic
      */
-    public float[] execute(float[] hiddenState, float[] encoderOutput)
+    public float[] execute(float[] hiddenState, List<float[]> encoderOutput)
     {
         // Self attention block
         hiddenState = selfAttentionBlock(hiddenState);
@@ -111,10 +131,10 @@ public class TransformerDecoder
         hiddenState = Util.addVectors(hiddenState, inputHiddenState);
 
         // Normalization
-        return normalization(hiddenState, attNormWeights, attNormBiases, settings.getEpsilon());
+        return normalization(hiddenState, selfNormWeights, selfNormBiases, settings.getEpsilon());
     }
 
-    private float[] crossAttentionBlock(float[] inputHiddenState, float[] encoderOutput)
+    private float[] crossAttentionBlock(float[] inputHiddenState, List<float[]> encoderOutput)
     {
         // Attention layer
         float[] hiddenState = crossAttention(inputHiddenState, encoderOutput);
@@ -123,7 +143,7 @@ public class TransformerDecoder
         hiddenState = Util.addVectors(hiddenState, inputHiddenState);
 
         // Normalization
-        return normalization(hiddenState, encoderAttNormWeights, encoderAttNormBiases, settings.getEpsilon());
+        return normalization(hiddenState, crossNormWeights, crossNormBiases, settings.getEpsilon());
     }
 
     private float[] neuronBlock(float[] inputHiddenState)
@@ -141,9 +161,9 @@ public class TransformerDecoder
     private float[] selfAttention(float[] hiddenState)
     {
         // Calculate the query, key and value vectors for the actual token:
-        float[] query = applyWeight(hiddenState, queryWeights, queryBiases);
-        float[] key = applyWeight(hiddenState, keyWeights, keyBiases);
-        float[] value = applyWeight(hiddenState, valueWeights, valueBiases);
+        float[] query = applyWeight(hiddenState, selfQueryWeights, selfQueryBiases);
+        float[] key = applyWeight(hiddenState, selfKeyWeights, selfKeyBiases);
+        float[] value = applyWeight(hiddenState, selfValueWeights, selfValueBiases);
 
         // Split the query, key and value vectors into pieces for all heads
         float[][] queries = Util.splitVector(query, settings.getDecoderHeadCount());
@@ -151,8 +171,8 @@ public class TransformerDecoder
         float[][] values = Util.splitVector(value, settings.getDecoderHeadCount());
 
         // Store the keys and values (these will be available while the following tokens will be processed)
-        storedKeys.add(keys);
-        storedValues.add(values);
+        storedSelfKeys.add(keys);
+        storedSelfValues.add(values);
 
         float[][] sums = new float[settings.getDecoderHeadCount()][settings.getHiddenSize() / settings.getDecoderHeadCount()];
 
@@ -162,20 +182,20 @@ public class TransformerDecoder
         for (int head = 0; head < settings.getDecoderHeadCount(); head++)
         {
             // Calculate the scores
-            float[] scores = new float[storedKeys.size()];
-            for (int pos = 0; pos < storedKeys.size(); pos++)
+            float[] scores = new float[storedSelfKeys.size()];
+            for (int pos = 0; pos < storedSelfKeys.size(); pos++)
             {
                 // The score is calculated multiplying the "actual" query vector and the "related" key vector
-                scores[pos] = Util.dotProduct(queries[head], storedKeys.get(pos)[head]) / settings.getDecoderScoreDividend();
+                scores[pos] = Util.dotProduct(queries[head], storedSelfKeys.get(pos)[head]) / settings.getDecoderScoreDividend();
             }
 
             // Softmax
             scores = softmax(scores);
 
             // Multiply the value matrices with the scores, and sum up
-            for (int pos = 0; pos < storedKeys.size(); pos++)
+            for (int pos = 0; pos < storedSelfKeys.size(); pos++)
             {
-                float[] sum = Util.multiplyVectorByScalar(storedValues.get(pos)[head], scores[pos]);
+                float[] sum = Util.multiplyVectorByScalar(storedSelfValues.get(pos)[head], scores[pos]);
                 sums[head] = Util.addVectors(sums[head], sum);
             }
         }
@@ -184,47 +204,37 @@ public class TransformerDecoder
         float[] flatSums = Util.flattenMatrix(sums);
 
         // Apply the attention projection weights and biases
-        return applyWeight(flatSums, projectionWeights, projectionBiases);
+        return applyWeight(flatSums, selfProjectionWeights, selfProjectionBiases);
     }
 
-    private float[] crossAttention(float[] hiddenState, float[] encoderOutput)
+    private float[] crossAttention(float[] hiddenState, List<float[]> encoderOutput)
     {
-        // Calculate the query, key and value vectors for the actual token:
-        float[] query = applyWeight(hiddenState, encoderQueryWeights, encoderQueryBiases);
-        float[] key = applyWeight(encoderOutput, encoderKeyWeights, encoderKeyBiases);
-        float[] value = applyWeight(encoderOutput, encoderValueWeights, encoderValueBiases);
+        // Calculate the query vector for the actual token:
+        float[] query = applyWeight(hiddenState, crossQueryWeights, crossQueryBiases);
 
-        // Split the query, key and value vectors into pieces for all heads
+        // Split the query vector into pieces for all heads
         float[][] queries = Util.splitVector(query, settings.getDecoderHeadCount());
-        float[][] keys = Util.splitVector(key, settings.getDecoderHeadCount());
-        float[][] values = Util.splitVector(value, settings.getDecoderHeadCount());
-
-        // Store the keys and values (these will be available while the following tokens will be processed)
-        storedEncoderKeys.add(keys);
-        storedEncoderValues.add(values);
 
         float[][] sums = new float[settings.getDecoderHeadCount()][settings.getHiddenSize() / settings.getDecoderHeadCount()];
 
-        // Scoring the previous tokens (including the actual), separately for all heads
-        // Again: we have to score not only the previous, but the actual token as well
-        // That is the reason of that we already added the actual key/value to the stored keys/values
+        // Scoring the encoder outputs, separately for all heads
         for (int head = 0; head < settings.getDecoderHeadCount(); head++)
         {
             // Calculate the scores
-            float[] scores = new float[storedKeys.size()];
-            for (int pos = 0; pos < storedEncoderKeys.size(); pos++)
+            float[] scores = new float[storedCrossKeys.size()];
+            for (int pos = 0; pos < encoderOutput.size(); pos++)
             {
                 // The score is calculated multiplying the "actual" query vector and the "related" key vector
-                scores[pos] = Util.dotProduct(queries[head], storedEncoderKeys.get(pos)[head]) / settings.getDecoderScoreDividend();
+                scores[pos] = Util.dotProduct(queries[head], storedCrossKeys.get(pos)[head]) / settings.getDecoderScoreDividend();
             }
 
             // Softmax
             scores = softmax(scores);
 
             // Multiply the value matrices with the scores, and sum up
-            for (int pos = 0; pos < storedEncoderKeys.size(); pos++)
+            for (int pos = 0; pos < encoderOutput.size(); pos++)
             {
-                float[] sum = Util.multiplyVectorByScalar(storedEncoderValues.get(pos)[head], scores[pos]);
+                float[] sum = Util.multiplyVectorByScalar(storedCrossValues.get(pos)[head], scores[pos]);
                 sums[head] = Util.addVectors(sums[head], sum);
             }
         }
@@ -233,7 +243,7 @@ public class TransformerDecoder
         float[] flatSums = Util.flattenMatrix(sums);
 
         // Apply the attention projection weights and biases
-        return applyWeight(flatSums, encoderProjectionWeights, encoderProjectionBiases);
+        return applyWeight(flatSums, crossProjectionWeights, crossProjectionBiases);
     }
 
     private float[] neuronLayers(float[] hiddenState)
@@ -250,11 +260,14 @@ public class TransformerDecoder
     }
 
     /**
-     * Clear stored values to start a new session
+     * Clear the stored values after finishing the translation
      */
     public void clear()
     {
-        storedKeys.clear();
-        storedValues.clear();
+        storedSelfKeys.clear();
+        storedSelfValues.clear();
+
+        storedCrossKeys.clear();
+        storedCrossValues.clear();
     }
 }
