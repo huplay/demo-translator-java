@@ -57,17 +57,19 @@ if a file is too large to upload to GitHub, it is possible to split into multipl
 The files are placed into folders:
  - `encoders/`
    - `encoder1..n`: Parameter files for the actual encoder  
-   - `input`: Parameter files used at the input side of the encoder stack (token and position embedding, normalization)
+   - `input`: Parameter files used at the input side of the encoder stack (position embedding, normalization)
  - `decoders/`
    - `decoder1..n`: Parameter files for the actual decoder
    - `input`: Parameter files used at the input side of the decoder stack (position embedding, normalization) 
-  - `tokenizer`: Files used by the tokenizer
+ - `input`: Parameter files used at the input side of both the encoder and decoder stack (token embedding) 
+ - `tokenizer`: Files used by the tokenizer
  - `setup`: It contains command files to set the necessary memory size for the actual model
 
 Every dataset should contain a model.properties file, with the following entries:
  - `token.count`: number of tokens
  - `start.of.text.token`: token id for marking the START-OF-TEXT
  - `end.of.text.token`: token id for marking the END-OF-TEXT
+ - `special.token.offset`: number of special tokens with extra embeddings
  - `context.size`: number of tokens the system can process (limited by the position embedding)
  - `hidden.size`: the size of the hidden state
  - `encoder.count`: number of encoders
@@ -77,6 +79,7 @@ Every dataset should contain a model.properties file, with the following entries
  - `decoder.attention.head.count`: number of attention heads of the decoders
  - `decoder.attention.score.dividend`: dividend at attention scoring (usually the square root of embeddingSize / headCount)
  - `epsilon`: epsilon, used at normalization (mostly 1e-5f)
+ - `prompt`: the text of the prompt (kind of internationalization)
 
 Optional properties:
  - `name`: name of the model

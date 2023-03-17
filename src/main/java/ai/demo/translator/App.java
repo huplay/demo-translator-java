@@ -41,7 +41,7 @@ public class App
             while (true)
             {
                 // Read the input text
-                OUT.print("\n\nEnglish text: ");
+                OUT.print("\n\n" + settings.getPrompt() + " ");
                 BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
                 String input = reader.readLine();
 

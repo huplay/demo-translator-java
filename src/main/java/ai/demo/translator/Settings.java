@@ -13,6 +13,7 @@ public class Settings
     private final int tokenCount;
     private final int startOfTextToken;
     private final int endOfTextToken;
+    private final int specialTokenOffset;
 
     private final int contextSize;
     private final int hiddenSize;
@@ -26,6 +27,8 @@ public class Settings
     private final int decoderScoreDividend;
 
     private final float epsilon;
+
+    private final String prompt;
 
     private final boolean hasAttentionQueryBias;
     private final boolean hasAttentionKeyBias;
@@ -52,7 +55,7 @@ public class Settings
                     String[] parts = line.split("=");
                     if (parts.length == 2)
                     {
-                        properties.put(parts[0].toLowerCase().trim(), parts[1].toLowerCase().trim());
+                        properties.put(parts[0].toLowerCase().trim(), parts[1].trim());
                     }
                     else
                     {
@@ -70,6 +73,7 @@ public class Settings
         tokenCount = getIntProperty(properties, "token.count");
         startOfTextToken = getIntProperty(properties, "start.of.text.token");
         endOfTextToken = getIntProperty(properties, "end.of.text.token");
+        specialTokenOffset = getIntProperty(properties, "special.token.offset");
 
         contextSize = getIntProperty(properties, "context.size");
         hiddenSize = getIntProperty(properties, "hidden.size");
@@ -84,6 +88,8 @@ public class Settings
 
         epsilon = getFloatProperty(properties, "epsilon");
 
+        prompt = getProperty(properties, "prompt");
+
         hasAttentionQueryBias = getBooleanProperty(properties, "has.attention.query.bias", true);
         hasAttentionKeyBias = getBooleanProperty(properties, "has.attention.key.bias", true);
         hasAttentionValueBias = getBooleanProperty(properties, "has.attention.value.bias", true);
@@ -96,7 +102,7 @@ public class Settings
     {
         long wteSize = (long) tokenCount * hiddenSize;
 
-        long wpeSize = (long) (contextSize + 2) * hiddenSize;
+        long wpeSize = (long) (contextSize + specialTokenOffset) * hiddenSize;
         long finalNormSize = (long) hiddenSize * 2;
 
         return wteSize +
@@ -216,6 +222,11 @@ public class Settings
         return endOfTextToken;
     }
 
+    public int getSpecialTokenOffset()
+    {
+        return specialTokenOffset;
+    }
+
     public int getContextSize()
     {
         return contextSize;
@@ -259,6 +270,11 @@ public class Settings
     public float getEpsilon()
     {
         return epsilon;
+    }
+
+    public String getPrompt()
+    {
+        return prompt;
     }
 
     public boolean hasAttentionQueryBias()

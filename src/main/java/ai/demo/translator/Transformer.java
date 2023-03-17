@@ -36,12 +36,15 @@ public class Transformer
         this.settings = settings;
         this.tokenizer = tokenizer;
 
-        this.tokenEmbeddings = readMatrixFile(path, "encoders/input/wte", settings.getTokenCount(), hiddenSize);
-        this.encoderPositionEmbeddings = readMatrixFile(path, "encoders/input/wpe", settings.getContextSize() + 2, hiddenSize);
+        int embeddingSize = settings.getContextSize() + settings.getSpecialTokenOffset();
+
+        this.tokenEmbeddings = readMatrixFile(path, "input/wte", settings.getTokenCount(), hiddenSize);
+
+        this.encoderPositionEmbeddings = readMatrixFile(path, "encoders/input/wpe", embeddingSize, hiddenSize);
         this.encoderNormWeights = readVectorFile(path, "encoders/input/norm.w", hiddenSize);
         this.encoderNormBiases = readVectorFile(path, "encoders/input/norm.b", hiddenSize);
 
-        this.decoderPositionEmbeddings = readMatrixFile(path, "decoders/input/wpe", settings.getContextSize() + 2, hiddenSize);
+        this.decoderPositionEmbeddings = readMatrixFile(path, "decoders/input/wpe", embeddingSize, hiddenSize);
         this.decoderNormWeights = readVectorFile(path, "decoders/input/norm.w", hiddenSize);
         this.decoderNormBiases = readVectorFile(path, "decoders/input/norm.b", hiddenSize);
 
@@ -64,14 +67,15 @@ public class Transformer
      */
     public List<Integer> processTokens(List<Integer> inputTokens)
     {
-        // Adding the START-OF-TEXT token to the beginning and END-OF-TEXT to the end
-        // The output for this token will be the output of the whole encoder stack
-        // (The output of the other tokens will be dropped, these will be used only by the attention mechanism.)
+        // Wrap the input between a START-OF-TEXT and END-OF-TEXT token
         inputTokens.add(0, settings.getStartOfTextToken());
         inputTokens.add(settings.getEndOfTextToken());
 
+        // Process all input tokens by the encoders, it will produce a hidden state for all tokens
         List<float[]> encoderOutputs = executeEncoderStack(inputTokens);
 
+        // Calculate the key and value vectors of the encoder outputs for all decoders
+        // (It will be used by the cross attention mechanism of the decoders)
         for (TransformerDecoder decoder : decoders)
         {
             decoder.calculateKeysAndValues(encoderOutputs);
@@ -80,21 +84,27 @@ public class Transformer
         // Collector of the generated new tokens (translation)
         List<Integer> result = new ArrayList<>();
 
+        // Feed the decoder stack with a starting input token.
+        // (I used the START-OF-TEXT token, but it gives the same result with almost every other tokens.)
         int token = settings.getEndOfTextToken();
 
         for (int pos = 0; pos < settings.getContextSize(); pos++)
         {
-            // Add the last input token or the previously generated new token as input
-            float[] hiddenState = decoderStack(pos, token, encoderOutputs);
+            // Feed the decoder stack with the previously generated token (or with the initial one)
+            float[] hiddenState = executeDecoderStack(pos, token, encoderOutputs);
 
-            // The output will be the next new token
+            // Determine the token based on the hidden state produced by the decoder stack
             token = selectNextToken(hiddenState);
             result.add(token);
 
-            // Exit if the END_OF_TEXT token was chosen or the context size is reached
+            // Exit if the END_OF_TEXT token was chosen
             if (token == settings.getEndOfTextToken()) break;
+
+            // Print the generated token - It isn't perfect, because some words or letters represented by multiple tokens
+            if (pos > 0) OUT.print(tokenizer.decode(Collections.singletonList(token)));
         }
 
+        // Delete the stored values of the decoders
         clear();
 
         return result;
@@ -110,7 +120,7 @@ public class Transformer
             float[] hiddenState = tokenEmbeddings[inputTokens.get(pos)];
 
             // Position embedding
-            hiddenState = Util.addVectors(hiddenState, encoderPositionEmbeddings[pos + 2]);
+            hiddenState = Util.addVectors(hiddenState, encoderPositionEmbeddings[pos + settings.getSpecialTokenOffset()]);
 
             // Initial normalization
             hiddenState = normalization(hiddenState, encoderNormWeights, encoderNormBiases, settings.getEpsilon());
@@ -137,12 +147,13 @@ public class Transformer
         return hiddenStates;
     }
 
-    private float[] decoderStack(int pos, int token, List<float[]> encoderOutput)
+    private float[] executeDecoderStack(int pos, int token, List<float[]> encoderOutput)
     {
+        // Word token embedding
         float[] hiddenState = tokenEmbeddings[token];
 
         // Position embedding
-        hiddenState = Util.addVectors(hiddenState, decoderPositionEmbeddings[pos + 2]);
+        hiddenState = Util.addVectors(hiddenState, decoderPositionEmbeddings[pos + settings.getSpecialTokenOffset()]);
 
         // Initial normalization
         hiddenState = normalization(hiddenState, decoderNormWeights, decoderNormBiases, settings.getEpsilon());
@@ -163,12 +174,7 @@ public class Transformer
         float[] logits = Util.multiplyVectorByTransposedMatrix(output, tokenEmbeddings);
 
         // Find the index of the highest logit
-        int tokenId = findBest(logits);
-
-        // Print the generated token - It isn't perfect, because some words or letters represented by multiple tokens
-        OUT.print(tokenizer.decode(Collections.singletonList(tokenId)));
-
-        return tokenId;
+        return findBest(logits);
     }
 
     private void clear()
